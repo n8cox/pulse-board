@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@/App';
+import { formatUpdatedAt } from '@/lib/cards';
 import type { PulseCard } from '@/types';
 import { STORAGE_KEY } from '@/types';
 
@@ -15,6 +16,11 @@ function addCardViaForm(title: string, status = 'green', note = '') {
 function getStoredCards(): PulseCard[] {
   const raw = localStorage.getItem(STORAGE_KEY);
   return raw ? (JSON.parse(raw) as PulseCard[]) : [];
+}
+
+function getVisibleCardTimestamp(): { text: string; dateTime: string | null } {
+  const time = within(screen.getByTestId('status-card')).getByRole('time');
+  return { text: time.textContent ?? '', dateTime: time.getAttribute('datetime') };
 }
 
 describe('App smoke', () => {
@@ -77,6 +83,10 @@ describe('App smoke', () => {
     expect(beforeEdit.note).toBe('Pipeline green');
     expect(beforeEdit.updatedAt).toBe('2026-09-07T10:00:00.000Z');
 
+    const beforeTimestamp = getVisibleCardTimestamp();
+    expect(beforeTimestamp.text).toBe(formatUpdatedAt(beforeEdit.updatedAt));
+    expect(beforeTimestamp.dateTime).toBe(beforeEdit.updatedAt);
+
     vi.setSystemTime(new Date('2026-09-07T11:30:00.000Z'));
 
     const card = screen.getByTestId('status-card');
@@ -98,6 +108,11 @@ describe('App smoke', () => {
     expect(afterEdit.note).toBe('Rollback required');
     expect(afterEdit.updatedAt).toBe('2026-09-07T11:30:00.000Z');
     expect(afterEdit.updatedAt).not.toBe(beforeEdit.updatedAt);
+
+    const afterTimestamp = getVisibleCardTimestamp();
+    expect(afterTimestamp.text).toBe(formatUpdatedAt(afterEdit.updatedAt));
+    expect(afterTimestamp.dateTime).toBe(afterEdit.updatedAt);
+    expect(afterTimestamp.text).not.toBe(beforeTimestamp.text);
   });
 
   it('removes a single card and leaves siblings intact (D6)', () => {
